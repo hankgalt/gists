@@ -1,0 +1,186 @@
+<html>
+  <head>
+    <style>
+      body {
+        background-color: #1d2126;
+        color: white;
+      }
+      .App {
+        text-align: center;
+      }
+
+      .App-header {
+        background-color: #222;
+        height: 150px;
+        padding: 20px;
+        color: white;
+      }
+
+      .App-title {
+        font-size: 1.5em;
+      }
+
+      .Search-input {
+        width: 200px;
+        padding: 1em;
+      }
+
+      .Search-results {
+        margin: 20px;
+        display: flex;
+        flex-wrap: wrap;
+      }
+
+      .Search-page {
+        margin: 20px;
+        display: flex;
+        justify-content: center;
+      }
+
+      .Search-prev {
+        margin: 20px;
+        align-self: flex-start;
+      }
+
+      .Search-next {
+        margin: 20px;
+        align-self: flex-end;
+      }
+      
+      .Movie-tile {
+        width: 100px;
+        display: flex;
+        flex-direction: column;
+        margin: 0 auto;
+      }
+
+      .Movie-bg {
+        width: 100%;
+        height: 178px;
+        position: relative;
+        background-repeat: no-repeat;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-size: cover;
+      }
+
+      .Movie-title {
+        width: 100%;
+        font-size: 1em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="myContainer"></div>
+    <script crossorigin src="https://unpkg.com/react@16/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@16/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <script type="text/babel">
+    
+    const domElement = document.getElementById("myContainer");
+    const randomPoster = '//images.adrise.tv/4mJyEE5M9qTt_-FVYqeEgN93g64=/400x574/smart/img.adrise.tv/63699c42-9607-4eb6-8626-465354c018b5.png';
+    
+    const MovieTile = ({ tileId, title, images }) => {
+      const movieTileStyle = {
+        backgroundImage: `url(${images.poster})`,
+      };
+      return (
+        <div className="Movie-tile">
+          <div className="Movie-bg" data-id={tileId} style={movieTileStyle}>
+          </div>
+          <div className="Movie-title">{`${title}`}</div>
+        </div>
+      );
+    };
+
+    const MovieTiles = ({ tiles, limit }) => {
+      if (!tiles || tiles.length < 1) {
+        return <div className="Search-results"/>
+      }
+
+      const [start, setStart] = React.useState(0)
+      const [end, setEnd] = React.useState(Math.min(limit, tiles.length))
+      const [visible, setVisible] = React.useState(Math.min(limit, tiles.length))
+
+      const currentView = (tiles, start, end) => {
+        console.log(`currentView() - start: ${start}, end: ${end}, visible: ${visible}`)
+        return tiles.slice(start, end)
+      }
+
+      const updateView = (next) => {
+        const newStart = next ? Math.max(0, start + limit) : Math.max(0, start - limit)
+        const newEnd = next ? Math.min(tiles.length, end + visible) : Math.min(tiles.length, end - visible)
+        setStart(newStart)
+        setEnd(newEnd)
+        setVisible(newEnd - newStart)
+      }
+
+      const visibleTiles = React.useMemo(() => currentView(tiles, start, end), [tiles, start, end]);
+
+      React.useEffect(() => {
+        setStart(0)
+        setEnd(Math.min(limit, tiles.length))
+      }, [tiles])
+
+      return (
+        <div>  
+          <div className="Search-results" onClick={(e) => {
+                    const movieId = e.target.getAttribute("data-id")
+                    if (movieId) console.log(`pretending to navigate to ${movieId}`)
+                  }}>
+            { visibleTiles.map(tile => {
+                return <MovieTile
+                  tileId={tile.id}
+                  key={tile.id}
+                  images={{ poster: tile.poster }}
+                  title={tile.title}
+                />
+              })
+            }
+          </div>
+          <div className="Search-page">
+            { start > 0 && <button type="button" className="Search-prev" onClick={() => updateView(false)}>prev</button> }
+            { end < tiles.length && <button type="button" className="Search-next" onClick={() => updateView(true)}>next</button> }
+          </div>
+        </div>
+      )
+    }
+
+    const Box = () => {
+      const [value, setValue] = React.useState("")
+      const [tiles, setTiles] = React.useState([])
+
+      React.useEffect(() => {
+        const getData = setTimeout(async () => {
+          if (!value || value === '') {
+            setTiles([]);
+          } else {
+            const res = await fetch(`https://tubi-mock-movies.herokuapp.com/search/${value}`)
+            const data = await res.json();
+            console.log(`found ${data.length} results`)
+            setTiles(data);
+          }
+        }, 2000)
+
+        return () => clearTimeout(getData)
+      }, [value])
+
+      return (
+        <div className="App">
+          <header className="App-header">
+            <h1 className="App-title">Search Tubi</h1>
+            <input className="Search-input" value={value} onChange={(e) => setValue(e.target.value)}/>
+          </header>
+          <MovieTiles tiles={tiles} limit={7}/>
+        </div>
+      );
+    }
+
+    ReactDOM.render(<Box/>, domElement)
+
+    </script>
+  </body>
+</html>
